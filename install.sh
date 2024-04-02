@@ -123,7 +123,7 @@ function angie_install() {
   mkdir -p ${angie_conf_dir} >/dev/null 2>&1
 }
 function dependency_install() {
-  ${INS} wget lsof tar bind9-dnsutils
+  ${INS} wget lsof tar bind-utils
   judge "安装 wget lsof tar"
 
   ${INS} crontabs
