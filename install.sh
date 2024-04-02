@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
 #====================================================
-#	System Request:Debian 9+/Ubuntu 18.04+/Centos 7+
-#	Author:	wulabing
+#	System Request:Centos/Rocky Linux/AlmaLinux/Oracle Linux 8+
+#	Author:	wulabing / Forked by Jach
 #	Dscription: Xray onekey Management
-#	email: admin@wulabing.com
+#	email: NO
 #====================================================
 
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -27,7 +27,7 @@ OK="${Green}[OK]${Font}"
 ERROR="${Red}[ERROR]${Font}"
 
 # 变量
-shell_version="1.3.11"
+shell_version="1.4"
 github_branch="main"
 xray_conf_dir="/usr/local/etc/xray"
 website_dir="/www/xray_web/"
@@ -64,7 +64,7 @@ function is_root() {
   if [[ 0 == "$UID" ]]; then
     print_ok "当前用户是 root 用户，开始安装流程"
   else
-    print_error "当前用户不是 root 用户，请切换到 root 用户后重新执行脚本"
+    print_error "请使用 root 用户后重新执行脚本"
     exit 1
   fi
 }
@@ -82,50 +82,17 @@ judge() {
 function system_check() {
   source '/etc/os-release'
 
-  if [[ "${ID}" == "centos" && ${VERSION_ID} -ge 7 ]]; then
-    print_ok "当前系统为 Centos ${VERSION_ID} ${VERSION}"
-    INS="yum install -y"
+  if [[ "${ID}" == "centos" && ${VERSION_ID} -ge 8 ]]; then
+    print_ok "当前系统为 ${NAME} ${VERSION}"
+    INS="dnf install -y"
     ${INS} wget
-    wget -N -P /etc/yum.repos.d/ https://raw.githubusercontent.com/wulabing/Xray_onekey/${github_branch}/basic/nginx.repo
+    wget -N -P /etc/yum.repos.d/ https://raw.githubusercontent.com/jachaussloef/Xray_onekey/${github_branch}/basic/angie_repos/${ID}/angie.repo
 
+  elif [[ "${ID}" == "rocky" || "${ID}" == "ol" || "${ID}" == "almalinux" ]]; then
+    print_ok "当前系统为 ${NAME} ${VERSION}"
+    INS="dnf install -y"
+    wget -N -P /etc/yum.repos.d/ https://raw.githubusercontent.com/jachaussloef/Xray_onekey/${github_branch}/basic/angie_repos/${ID}/angie.repo
 
-  elif [[ "${ID}" == "ol" ]]; then
-    print_ok "当前系统为 Oracle Linux ${VERSION_ID} ${VERSION}"
-    INS="yum install -y"
-    wget -N -P /etc/yum.repos.d/ https://raw.githubusercontent.com/wulabing/Xray_onekey/${github_branch}/basic/nginx.repo
-  elif [[ "${ID}" == "debian" && ${VERSION_ID} -ge 9 ]]; then
-    print_ok "当前系统为 Debian ${VERSION_ID} ${VERSION}"
-    INS="apt install -y"
-    # 清除可能的遗留问题
-    rm -f /etc/apt/sources.list.d/nginx.list
-    # nginx 安装预处理
-    $INS curl gnupg2 ca-certificates lsb-release debian-archive-keyring
-    curl https://nginx.org/keys/nginx_signing.key | gpg --dearmor \
-    | tee /usr/share/keyrings/nginx-archive-keyring.gpg >/dev/null
-    echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] \
-    http://nginx.org/packages/debian `lsb_release -cs` nginx" \
-    | tee /etc/apt/sources.list.d/nginx.list
-    echo -e "Package: *\nPin: origin nginx.org\nPin: release o=nginx\nPin-Priority: 900\n" \
-    | tee /etc/apt/preferences.d/99nginx
-
-    apt update
-
-  elif [[ "${ID}" == "ubuntu" && $(echo "${VERSION_ID}" | cut -d '.' -f1) -ge 18 ]]; then
-    print_ok "当前系统为 Ubuntu ${VERSION_ID} ${UBUNTU_CODENAME}"
-    INS="apt install -y"
-    # 清除可能的遗留问题
-    rm -f /etc/apt/sources.list.d/nginx.list
-    # nginx 安装预处理
-    $INS curl gnupg2 ca-certificates lsb-release ubuntu-keyring
-    curl https://nginx.org/keys/nginx_signing.key | gpg --dearmor \
-    | tee /usr/share/keyrings/nginx-archive-keyring.gpg >/dev/null
-    echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] \
-    http://nginx.org/packages/ubuntu `lsb_release -cs` nginx" \
-    | tee /etc/apt/sources.list.d/nginx.list
-    echo -e "Package: *\nPin: origin nginx.org\nPin: release o=nginx\nPin-Priority: 900\n" \
-    | tee /etc/apt/preferences.d/99nginx
-
-    apt update
   else
     print_error "当前系统为 ${ID} ${VERSION_ID} 不在支持的系统列表内"
     exit 1
@@ -137,44 +104,32 @@ function system_check() {
 
   $INS dbus
 
-  # 关闭各类防火墙
+  # 关闭RHEL防火墙
   systemctl stop firewalld
   systemctl disable firewalld
-  systemctl stop nftables
-  systemctl disable nftables
-  systemctl stop ufw
-  systemctl disable ufw
 }
 
-function nginx_install() {
-  if ! command -v nginx >/dev/null 2>&1; then
-    ${INS} nginx
-    judge "Nginx 安装"
+function angie_install() {
+  if ! command -v angie >/dev/null 2>&1; then
+    ${INS} angie
+    judge "ANGIE 安装"
   else
-    print_ok "Nginx 已存在"
+    print_ok "ANGIE 已存在"
   fi
   # 遗留问题处理
-  mkdir -p /etc/nginx/conf.d >/dev/null 2>&1
+  mkdir -p /etc/angie/http.d >/dev/null 2>&1
 }
 function dependency_install() {
   ${INS} lsof tar
   judge "安装 lsof tar"
 
-  if [[ "${ID}" == "centos" || "${ID}" == "ol" ]]; then
-    ${INS} crontabs
-  else
-    ${INS} cron
-  fi
+  ${INS} crontabs
+
   judge "安装 crontab"
 
-  if [[ "${ID}" == "centos" || "${ID}" == "ol" ]]; then
-    touch /var/spool/cron/root && chmod 600 /var/spool/cron/root
-    systemctl start crond && systemctl enable crond
-  else
-    touch /var/spool/cron/crontabs/root && chmod 600 /var/spool/cron/crontabs/root
-    systemctl start cron && systemctl enable cron
+  touch /var/spool/cron/root && chmod 600 /var/spool/cron/root
+  systemctl start crond && systemctl enable crond
 
-  fi
   judge "crontab 自启动配置 "
 
   ${INS} unzip
@@ -187,34 +142,15 @@ function dependency_install() {
   ${INS} systemd
   judge "安装/升级 systemd"
 
-  # Nginx 后置 无需编译 不再需要
-  #  if [[ "${ID}" == "centos" ||  "${ID}" == "ol" ]]; then
-  #    yum -y groupinstall "Development tools"
-  #  else
-  #    ${INS} build-essential
-  #  fi
-  #  judge "编译工具包 安装"
-
-  if [[ "${ID}" == "centos" ]]; then
+  if [[ "${ID}" == "centos" || "${ID}" == "almalinux" ||"${ID}" == "rocky" ]]; then
     ${INS} pcre pcre-devel zlib-devel epel-release openssl openssl-devel
   elif [[ "${ID}" == "ol" ]]; then
     ${INS} pcre pcre-devel zlib-devel openssl openssl-devel
-    # Oracle Linux 不同日期版本的 VERSION_ID 比较乱 直接暴力处理。如出现问题或有更好的方案，请提交 Issue。
     yum-config-manager --enable ol7_developer_EPEL >/dev/null 2>&1
     yum-config-manager --enable ol8_developer_EPEL >/dev/null 2>&1
-  else
-    ${INS} libpcre3 libpcre3-dev zlib1g-dev openssl libssl-dev
   fi
 
   ${INS} jq
-
-  if ! command -v jq; then
-    wget -P /usr/bin https://raw.githubusercontent.com/wulabing/Xray_onekey/${github_branch}/binary/jq && chmod +x /usr/bin/jq
-    judge "安装 jq"
-  fi
-
-  # 防止部分系统xray的默认bin目录缺失
-  mkdir /usr/local/bin >/dev/null 2>&1
 }
 
 function basic_optimization() {
@@ -225,14 +161,14 @@ function basic_optimization() {
   echo '* hard nofile 65536' >>/etc/security/limits.conf
 
   # RedHat 系发行版关闭 SELinux
-  if [[ "${ID}" == "centos" || "${ID}" == "ol" ]]; then
+  if [[ "${ID}" == "centos" || "${ID}" == "rocky" || "${ID}" == "ol" || "${ID}" == "almalinux" ]]; then
     sed -i 's/^SELINUX=.*/SELINUX=disabled/' /etc/selinux/config
     setenforce 0
   fi
 }
 
 function domain_check() {
-  read -rp "请输入你的域名信息(eg: www.wulabing.com):" domain
+  read -rp "请输入你的域名信息(eg: www.bing.com):" domain
   domain_ip=$(curl -sm8 ipget.net/?ip="${domain}")
   print_ok "正在获取 IP 地址信息，请耐心等待"
   wgcfv4_status=$(curl -s4m8 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
@@ -242,8 +178,8 @@ function domain_check() {
     wg-quick down wgcf >/dev/null 2>&1
     print_ok "已关闭 wgcf-warp"
   fi
-  local_ipv4=$(curl -4 ip.sb)
-  local_ipv6=$(curl -6 ip.sb)
+  local_ipv4=$(curl -4 ifconfig.me)
+  local_ipv6=$(curl -6 ifconfig.me)
   if [[ -z ${local_ipv4} && -n ${local_ipv6} ]]; then
     # 纯IPv6 VPS，自动添加DNS64服务器以备acme.sh申请证书使用
     echo -e nameserver 2a01:4f8:c2c:123f::1 > /etc/resolv.conf
@@ -261,7 +197,7 @@ function domain_check() {
     sleep 2
   else
     print_error "请确保域名添加了正确的 A / AAAA 记录，否则将无法正常使用 xray"
-    print_error "域名通过 DNS 解析的 IP 地址与 本机 IPv4 / IPv6 地址不匹配，是否继续安装？（y/n）" && read -r install
+    print_error "域名通过 DNS 解析的 IP 地址与 本机 IPv4 / IPv6 地址不匹配或暂时无法获取 DNS 解析的 IP，是否继续安装？（y/n）" && read -r install
     case $install in
     [yY][eE][sS] | [yY])
       print_ok "继续安装"
@@ -290,13 +226,13 @@ function port_exist_check() {
   fi
 }
 function update_sh() {
-  ol_version=$(curl -L -s https://raw.githubusercontent.com/wulabing/Xray_onekey/${github_branch}/install.sh | grep "shell_version=" | head -1 | awk -F '=|"' '{print $3}')
+  ol_version=$(curl -L -s https://raw.githubusercontent.com/jachaussloef/Xray_onekey/${github_branch}/install.sh | grep "shell_version=" | head -1 | awk -F '=|"' '{print $3}')
   if [[ "$shell_version" != "$(echo -e "$shell_version\n$ol_version" | sort -rV | head -1)" ]]; then
     print_ok "存在新版本，是否更新 [Y/N]?"
     read -r update_confirm
     case $update_confirm in
     [yY][eE][sS] | [yY])
-      wget -N --no-check-certificate https://raw.githubusercontent.com/wulabing/Xray_onekey/${github_branch}/install.sh
+      wget -N --no-check-certificate https://raw.githubusercontent.com/jachaussloef/Xray_onekey/${github_branch}/install.sh
       print_ok "更新完成"
       print_ok "您可以通过 bash $0 执行本程序"
       exit 0
@@ -342,14 +278,14 @@ function modify_ws() {
   judge "Xray ws 修改"
 }
 
-function configure_nginx() {
-  nginx_conf="/etc/nginx/conf.d/${domain}.conf"
-  cd /etc/nginx/conf.d/ && rm -f ${domain}.conf && wget -O ${domain}.conf https://raw.githubusercontent.com/wulabing/Xray_onekey/${github_branch}/config/web.conf
-  sed -i "s/xxx/${domain}/g" ${nginx_conf}
-  judge "Nginx 配置 修改"
+function configure_angie() {
+  angie_conf="/etc/angie/http.d/${domain}.conf"
+  cd /etc/angie/http.d/ && rm -f ${domain}.conf && wget -O ${domain}.conf https://raw.githubusercontent.com/jachaussloef/Xray_onekey/${github_branch}/config/web.conf
+  sed -i "s/xxx/${domain}/g" ${angie_conf}
+  judge "ANGIE 配置 修改"
   
-  systemctl enable nginx
-  systemctl restart nginx
+  systemctl enable angie
+  systemctl restart angie
 }
 
 function modify_port() {
@@ -366,13 +302,13 @@ function modify_port() {
 }
 
 function configure_xray() {
-  cd /usr/local/etc/xray && rm -f config.json && wget -O config.json https://raw.githubusercontent.com/wulabing/Xray_onekey/${github_branch}/config/xray_xtls-rprx-vision.json
+  cd /usr/local/etc/xray && rm -f config.json && wget -O config.json https://raw.githubusercontent.com/jachaussloef/Xray_onekey/${github_branch}/config/xray_xtls-rprx-vision.json
   modify_UUID
   modify_port
 }
 
 function configure_xray_ws() {
-  cd /usr/local/etc/xray && rm -f config.json && wget -O config.json https://raw.githubusercontent.com/wulabing/Xray_onekey/${github_branch}/config/xray_tls_ws_mix-rprx-vision.json
+  cd /usr/local/etc/xray && rm -f config.json && wget -O config.json https://raw.githubusercontent.com/jachaussloef/Xray_onekey/${github_branch}/config/xray_tls_ws_mix-rprx-vision.json
   modify_UUID
   modify_UUID_ws
   modify_port
@@ -406,9 +342,9 @@ function ssl_install() {
 function acme() {
   "$HOME"/.acme.sh/acme.sh --set-default-ca --server letsencrypt
 
-  sed -i "6s/^/#/" "$nginx_conf"
-  sed -i "6a\\\troot $website_dir;" "$nginx_conf"
-  systemctl restart nginx
+  sed -i "6s/^/#/" "$angie_conf"
+  sed -i "6a\\\troot $website_dir;" "$angie_conf"
+  systemctl restart angie
 
   if "$HOME"/.acme.sh/acme.sh --issue --insecure -d "${domain}" --webroot "$website_dir" -k ec-256 --force; then
     print_ok "SSL 证书生成成功"
@@ -442,8 +378,8 @@ function acme() {
     exit 1
   fi
 
-  sed -i "7d" "$nginx_conf"
-  sed -i "6s/#//" "$nginx_conf"
+  sed -i "7d" "$angie_conf"
+  sed -i "6s/#//" "$angie_conf"
 }
 
 function ssl_judge_and_install() {
@@ -502,7 +438,7 @@ function configure_web() {
   read -r webpage
   case $webpage in
   [yY][eE][sS] | [yY])
-    wget -O web.tar.gz https://raw.githubusercontent.com/wulabing/Xray_onekey/main/basic/web.tar.gz
+    wget -O web.tar.gz https://raw.githubusercontent.com/jachaussloef/Xray_onekey/main/basic/web.tar.gz
     tar xzf web.tar.gz -C /www/xray_web
     judge "站点伪装"
     rm -f web.tar.gz
@@ -514,15 +450,11 @@ function configure_web() {
 function xray_uninstall() {
   curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh | bash -s -- remove --purge
   rm -rf $website_dir
-  print_ok "是否卸载nginx [Y/N]?"
-  read -r uninstall_nginx
-  case $uninstall_nginx in
+  print_ok "是否卸载ANGIE [Y/N]?"
+  read -r uninstall_angie
+  case $uninstall_angie in
   [yY][eE][sS] | [yY])
-    if [[ "${ID}" == "centos" || "${ID}" == "ol" ]]; then
-      yum remove nginx -y
-    else
-      apt purge nginx -y
-    fi
+  dnf remove angie -y
     ;;
   *) ;;
   esac
@@ -541,8 +473,8 @@ function xray_uninstall() {
 }
 
 function restart_all() {
-  systemctl restart nginx
-  judge "Nginx 启动"
+  systemctl restart angie
+  judge "ANGIE 启动"
   systemctl restart xray
   judge "Xray 启动"
 }
@@ -668,8 +600,8 @@ function install_xray() {
   port_exist_check 80
   xray_install
   configure_xray
-  nginx_install
-  configure_nginx
+  angie_install
+  configure_angie
   configure_web
   generate_certificate
   ssl_judge_and_install
@@ -685,8 +617,8 @@ function install_xray_ws() {
   port_exist_check 80
   xray_install
   configure_xray_ws
-  nginx_install
-  configure_nginx
+  angie_install
+  configure_angie
   configure_web
   generate_certificate
   ssl_judge_and_install
@@ -697,14 +629,12 @@ menu() {
   update_sh
   shell_mode_check
   echo -e "\t Xray 安装管理脚本 ${Red}[${shell_version}]${Font}"
-  echo -e "\t---authored by wulabing---"
-  echo -e "\thttps://github.com/wulabing\n"
 
   echo -e "当前已安装版本：${shell_mode}"
   echo -e "—————————————— 安装向导 ——————————————"""
   echo -e "${Green}0.${Font}  升级 脚本"
-  echo -e "${Green}1.${Font}  安装 Xray (VLESS + TCP + XTLS / TLS + Nginx)"
-  echo -e "${Green}2.${Font}  安装 Xray (VLESS + TCP + XTLS / TLS + Nginx 及 VLESS + TCP + TLS + Nginx + WebSocket 回落并存模式)"
+  echo -e "${Green}1.${Font}  安装 Xray (VLESS + TCP + XTLS / TLS + ANGIE)"
+  echo -e "${Green}2.${Font}  安装 Xray (VLESS + TCP + XTLS / TLS + ANGIE 及 VLESS + TCP + TLS + ANGIE + WebSocket 回落并存模式)"
   echo -e "—————————————— 配置变更 ——————————————"
   echo -e "${Green}11.${Font} 变更 UUID"
   echo -e "${Green}13.${Font} 变更 连接端口"
