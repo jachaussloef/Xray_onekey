@@ -27,7 +27,7 @@ OK="${Green}[OK]${Font}"
 ERROR="${Red}[ERROR]${Font}"
 
 # 变量
-shell_version="1.0"
+shell_version="1.0.1"
 github_branch="main"
 xray_conf_dir="/usr/local/etc/xray"
 website_dir="/www/xray_web/"
@@ -276,7 +276,7 @@ function modify_angie_port() {
 
 function modify_angie_ws(){
   sed -i "/location/c \\\tlocation ${WS_PATH}" ${angie_conf}
-  judge "Nginx ws 修改"
+  judge "ANGIE ws 修改"
 }
 
 function modify_angie_other() {
@@ -344,13 +344,6 @@ function xray_install() {
 }
 
 function ssl_install() {
-  #  使用 Nginx 配合签发 无需安装相关依赖
-  #  if [[ "${ID}" == "centos" ||  "${ID}" == "ol" ]]; then
-  #    ${INS} socat nc
-  #  else
-  #    ${INS} socat netcat
-  #  fi
-  #  judge "安装 SSL 证书生成脚本依赖"
 
   curl -L get.acme.sh | bash
   judge "安装 SSL 证书生成脚本"
@@ -570,8 +563,7 @@ menu() {
   update_sh
   shell_mode_check
   echo -e "\t Xray 安装管理脚本 ${Red}[${shell_version}]${Font}"
-  echo -e "\t---authored by wulabing---"
-  echo -e "\thttps://github.com/wulabing\n"
+  echo -e "\t---authored by jach---"
 
   echo -e "当前已安装版本：${shell_mode}"
   echo -e "—————————————— 安装向导 ——————————————"""
@@ -616,7 +608,7 @@ menu() {
   14)
     DOMAIN=$(cat ${domain_tmp_dir}/domain)
     angie_conf="${angie_conf_dir}/${DOMAIN}.conf"
-    read -rp "请输入路径(示例：/wulabing/ 要求两侧都包含/):" WS_PATH
+    read -rp "请输入路径(示例：/example/ 要求两侧都包含/):" WS_PATH
     modify_ws
     modify_angie_ws
     restart_all
